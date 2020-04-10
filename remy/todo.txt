@@ -1,1 +1,18 @@
-- Something to do
+- Finir lire papier
+- Check github
+
+- implementer from scratch
+- faire un benchmark des attacks
+- latex
+- notebook
+- ppt
+- Coder a la maniere du papier suggerer par geovani
+
+
+
+
+
+Ideas:
+- Data Augmentation to check accuracy improvement
+- Check attack accuracies
+- CW
