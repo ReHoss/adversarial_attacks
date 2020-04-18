@@ -1,14 +1,12 @@
 import numpy as np
 import pandas as pd
-import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, BatchNormalization, MaxPooling2D
-from tensorflow.keras.datasets import cifar10
-from tensorflow.keras.models import Model
-from tensorflow import keras
-import numpy as np
 import datetime
 import typing
 import matplotlib.pyplot as plt
+import tensorflow as tf
+from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, MaxPooling2D, AveragePooling2D
+from tensorflow.keras.datasets import cifar10
+from tensorflow.keras.models import Model
 
 
 class ModelConfig(typing.NamedTuple):
@@ -29,6 +27,7 @@ def create_model(config: ModelConfig):
         x = Conv2D(filters=filters, kernel_size=(kernel_size, kernel_size), activation='relu')(x)
         x = MaxPooling2D((2, 2))(x)
 
+    x = AveragePooling2D()(x)
     x = Flatten()(x)
 
     for nb_units, activation in config.dense_layers:
@@ -51,8 +50,7 @@ def create_model(config: ModelConfig):
 
 if __name__ == '__main__':
 
-    tf.random.set_seed(94)
-    np.random.seed(94)
+    now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
     (X_train_full, y_train_full), (X_test, y_test) = cifar10.load_data()
     X_train, X_valid = X_train_full[:40000] / 255.0, X_train_full[40000:] / 255.0
@@ -60,8 +58,8 @@ if __name__ == '__main__':
     X_test = X_test / 255.0
 
     config = ModelConfig(
-        conv_layers=[(64, 4), (128, 4), (256, 4)],
-        dense_layers=[(256, "relu"), (10, None)],
+        conv_layers=[(32, 4), (64, 4), (128, 4)],
+        dense_layers=[(128, "relu"), (10, None)],
         epochs=20
     )
 
@@ -80,8 +78,8 @@ if __name__ == '__main__':
     plt.xlabel('Epoch')
     plt.legend(['Train', 'Test'], loc='upper left')
     plt.show()
-    plt.savefig("loss_evolution.png")
+    plt.savefig("loss_evolution{}.png".format(now))
 
     test_loss, test_acc = model.evaluate(X_test, y_test)
     print("loss {}, accuracy {} on test set".format(test_loss, test_acc))
-    model.save("model_{}".format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S")))
+    model.save("model_{}".format(now))
