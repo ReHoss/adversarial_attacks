@@ -16,11 +16,11 @@ x_train, x_test = x_train / 255.0, x_test / 255.0
 
 # Define model
 model = models.Sequential(name='cifar')
-model.add(layers.Conv2D(64, (4, 4), activation='relu', input_shape=(32, 32, 3)))
+model.add(layers.Conv2D(64, (3, 3), activation='relu', input_shape=(32, 32, 3)))
 model.add(layers.MaxPooling2D((2, 2)))
-model.add(layers.Conv2D(128, (4, 4), activation='relu'))
+model.add(layers.Conv2D(128, (3, 3), activation='relu'))
 model.add(layers.MaxPooling2D((2, 2)))
-model.add(layers.Conv2D(256, (4, 4), activation='relu'))
+model.add(layers.Conv2D(256, (3, 3), activation='relu'))
 model.add(layers.AveragePooling2D())
 model.add(layers.Flatten())
 model.add(layers.Dense(256, activation='relu'))
