@@ -58,8 +58,8 @@ if __name__ == '__main__':
     X_test = X_test / 255.0
 
     config = ModelConfig(
-        conv_layers=[(32, 4), (64, 4), (128, 4)],
-        dense_layers=[(128, "relu"), (10, None)],
+        conv_layers=[(64, 3), (128, 3), (256, 3)],
+        dense_layers=[(256, "relu"), (10, None)],
         epochs=20
     )
 
