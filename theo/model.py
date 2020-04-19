@@ -4,9 +4,10 @@ import datetime
 import typing
 import matplotlib.pyplot as plt
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, MaxPooling2D, AveragePooling2D
+from tensorflow.keras.layers import Input, Dense, Flatten, Conv2D, MaxPooling2D, AveragePooling2D, Dropout
 from tensorflow.keras.datasets import cifar10
 from tensorflow.keras.models import Model
+from tensorflow.keras.callbacks import EarlyStopping
 
 
 class ModelConfig(typing.NamedTuple):
@@ -25,6 +26,7 @@ def create_model(config: ModelConfig):
 
     for filters, kernel_size in config.conv_layers:
         x = Conv2D(filters=filters, kernel_size=(kernel_size, kernel_size), activation='relu')(x)
+        x = Dropout(0.2, seed=94)(x)
         x = MaxPooling2D((2, 2))(x)
 
     x = AveragePooling2D()(x)
@@ -38,7 +40,6 @@ def create_model(config: ModelConfig):
         outputs=x,
         name="model"
     )
-    ####
 
     model.compile(
         loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
@@ -52,15 +53,15 @@ if __name__ == '__main__':
 
     now = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
 
-    (X_train_full, y_train_full), (X_test, y_test) = cifar10.load_data()
-    X_train, X_valid = X_train_full[:40000] / 255.0, X_train_full[40000:] / 255.0
+    (x_train_full, y_train_full), (x_test, y_test) = cifar10.load_data()
+    x_train, x_valid = x_train_full[:40000] / 255.0, x_train_full[40000:] / 255.0
     y_train, y_valid = y_train_full[:40000], y_train_full[40000:]
-    X_test = X_test / 255.0
+    x_test = x_test / 255.0
 
     config = ModelConfig(
         conv_layers=[(64, 3), (128, 3), (256, 3)],
-        dense_layers=[(256, "relu"), (10, None)],
-        epochs=20
+        dense_layers=[(512, "relu"), (10, None)],
+        epochs=50
     )
 
     model = create_model(config)
@@ -68,18 +69,33 @@ if __name__ == '__main__':
 
     # log_dir = "logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
     # tensorboard_callback = keras.callbacks.TensorBoard(log_dir)
+    early_stopping_cb = EarlyStopping(patience=5, restore_best_weights=True)
 
-    history = model.fit(X_train, y_train, epochs=config.epochs, validation_data=(X_valid, y_valid))
+    history = model.fit(x_train, y_train, epochs=config.epochs, validation_data=(x_valid, y_valid),
+                        callbacks=[early_stopping_cb])
 
-    plt.plot(pd.DataFrame(history.history))
-    plt.grid(True)
+    test_loss, test_acc = model.evaluate(x_test, y_test)
+    print("loss {}, accuracy {} on test set".format(test_loss, test_acc))
+    model.save("model_{}".format(now))
+
+    plt.plot(history.history['accuracy'])
+    plt.plot(history.history['val_accuracy'])
+    plt.gca().set_ylim(0, 1.0)
+    plt.title('Accuracy evolution')
+    plt.ylabel('Accuracy')
+    plt.xlabel('Epoch')
+    plt.legend(['Train', 'Test'], loc='upper left')
+    plt.show()
+    plt.savefig("accuracy_evolution_{}.png".format(now))
+    plt.close()
+
+    plt.plot(history.history['loss'])
+    plt.plot(history.history['val_loss'])
     plt.gca().set_ylim(0, 2.2)
+    plt.title('Loss evolution')
     plt.ylabel('Loss')
     plt.xlabel('Epoch')
     plt.legend(['Train', 'Test'], loc='upper left')
     plt.show()
-    plt.savefig("loss_evolution{}.png".format(now))
-
-    test_loss, test_acc = model.evaluate(X_test, y_test)
-    print("loss {}, accuracy {} on test set".format(test_loss, test_acc))
-    model.save("model_{}".format(now))
+    plt.savefig("loss_evolution_{}.png".format(now))
+    plt.close()
