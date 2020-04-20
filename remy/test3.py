@@ -4,19 +4,6 @@ import numpy as np
 from tensorflow.keras import datasets, layers
 
 
-# plt.figure(figsize=(10, 10))
-# for i in range(25):
-#     plt.subplot(5, 5, i + 1)
-#     plt.xticks([])
-#     plt.yticks([])
-#     plt.grid(False)
-#     plt.imshow(x_train[i])
-#     # The CIFAR labels happen to be arrays,
-#     # which is why you need the extra index
-#     plt.xlabel(class_names[y_train[i][0]])
-# plt.show()
-
-
 # noinspection SpellCheckingInspection,PyShadowingNames
 class ConvBlock(tf.keras.Model):
 
@@ -80,6 +67,7 @@ class MyNet(tf.keras.Model):
         x = self.end_block(x)
         return x
 
+
 def get_gradient(x, y, model, loss_fn):
     """Compute the gradient of the loss as a function of x
 
@@ -101,6 +89,7 @@ def get_gradient(x, y, model, loss_fn):
     gradient = tape.gradient(loss, x)
     return gradient
 
+
 def sign_gradient(gradient):
     """Get the sign of the gradients to create the perturbation
 
@@ -111,6 +100,7 @@ def sign_gradient(gradient):
 
     """
     return tf.sign(gradient)
+
 
 def generate_sign_perturbation(x, eta, sign_gradient):
     """Generates perturbated elements from an initial tensor x
@@ -135,6 +125,7 @@ def fgsm(x, y, model, loss_fn, eta=0.01, **kwargs):
     x_adv = generate_sign_perturbation(x, eta, signed_gradient)
     return x_adv
 
+
 def pgd_infinity(x, y, model, loss_fn, eta=0.01, eps=0.1, n_steps=2):
     x_adv = x
     for i in range(n_steps):
@@ -144,11 +135,99 @@ def pgd_infinity(x, y, model, loss_fn, eta=0.01, eps=0.1, n_steps=2):
         x_adv = tf.clip_by_value(perturbation, x - eps, x + eps)
     return x_adv
 
-def pgd_ininity_random(x, y, model, loss_fn, eta=0.01, eps=0.1, n_steps=2):
 
-    x_random = x + tf.random.uniform(shape=x.shape, minval=-eps, maxval=eps,
-                                     seed=94, dtype=tf.dtypes.float64)
-    return pgd_infinity(x_random, y, model, loss_fn, eta, eps, n_steps)
+def pgd_ininity_random(x, y, model, loss_fn, eta=0.01, eps=0.1, n_steps=2):
+    """PGD l-infinity with random init uniform centered in x and of radius
+    eps / 2.
+
+    Args:
+        x:
+        y:
+        model:
+        loss_fn:
+        eta:
+        eps:
+        n_steps:
+
+    Returns:
+
+    """
+    x_random = x + tf.random.uniform(shape=x.shape,
+                                     minval=-eps / 2,
+                                     maxval=eps / 2,
+                                     seed=94,
+                                     dtype=tf.dtypes.float64)
+    x_adv = pgd_infinity(x_random, y, model, loss_fn, eta, eps, n_steps)
+    return x_adv
+
+
+def projection_l2(x, x_adv, eps):
+    """Project x_adv onto the l2-ball centered in x
+
+    Args:
+        x: tf.Tensor, ball center.
+        x_adv: tf.Tensor to be projected.
+        eps: scalar, radius,
+
+    Returns:
+        tf.Tensor projected onto the ball.
+    """
+    # Reshape tensor to compute the norm easily, keep batch axis
+    delta = tf.reshape(x - x_adv, [x.shape[0], -1])
+    norm_x = tf.norm(delta, axis=1, ord='euclidean')
+    scale = tf.math.minimum(1, eps / norm_x)
+    scale = tf.reshape(scale, (-1, 1, 1, 1))
+    return x + scale * (x - x_adv)
+
+    # norm_x = tf.norm(delta, axis=1, ord='euclidean')
+    # tf.constant([1.0, 2.0]) * tf.ones((10,2,2,3))
+    # tst = tf.reshape(tf.constant([1.0, .0], dtype=tf.dtypes.float64), (-1,1,1,1))
+    # tf.reduce_mean(x_adv, axis=(1, 2, 3))
+    # tf.reduce_mean(tf.multiply(x_adv, tst), axis=(1, 2, 3))
+    # pgd_l2(x, y, model, loss_fn, n_steps=3)
+    # pgd_infinity(x, y, model, loss_fn, n_steps=3)
+
+
+def pgd_l2(x, y, model, loss_fn, eta=0.01, eps=0.1, n_steps=2):
+    """PGD
+
+    Args:
+        x: tf.Tensor, input to attack.
+        y: tf.Tensor, associated labels.
+        model: tf.Model, model to attack.
+        loss_fn: tf.losses, loss to attack.
+        eta: scalar, step size.
+        eps: scalar, radius of the ball.
+        n_steps: int, number of iterations.
+    """
+    x_adv = x
+    for i in range(n_steps):
+        # Perturbation
+        perturbation = fgsm(x_adv, y, model, loss_fn, eta)
+        x_adv = projection_l2(x, perturbation, eps)
+    return x_adv
+
+
+def pgd_l2_random(x, y, model, loss_fn, eta=0.01, eps=0.1, n_steps=2):
+    """PGD with random start.
+
+    Args:
+        x: tf.Tensor, input to attack.
+        y: tf.Tensor, associated labels.
+        model: tf.Model, model to attack.
+        loss_fn: tf.losses, loss to attack.
+        eta: scalar, step size.
+        eps: scalar, radius of the ball.
+        n_steps: int, number of itertions.
+    """
+    x_random = x + tf.random.uniform(shape=x.shape,
+                                     minval=-eps / 2,
+                                     maxval=eps / 2,
+                                     seed=94,
+                                     dtype=tf.dtypes.float64)
+
+    x_adv = pgd_l2(x_random, y, model, loss_fn, eta, eps, n_steps)
+    return x_adv
 
 
 if __name__ == '__main__':
@@ -197,7 +276,7 @@ if __name__ == '__main__':
                 # to its inputs are going to be recorded
                 # on the GradientTape.
                 softmax = model(x_batch_train,
-                               training=True)  # Logits for this minibatch
+                                training=True)  # Logits for this minibatch
 
                 # Compute the loss value for this minibatch.
                 loss_value = loss_fn(y_batch_train, softmax)
@@ -251,10 +330,14 @@ if __name__ == '__main__':
     tf.reduce_sum(fgsm(x, y, model, loss_fn, eta=0.01) > 1)
 
     tf.reduce_sum(
-        tf.cast(generate_sign_perturbation(x, 0.2, signed_gradient) > 1,
-                dtype=tf.int32))
+            tf.cast(generate_sign_perturbation(x, 0.2, signed_gradient) > 1,
+                    dtype=tf.int32))
 
     list_eta = [0, 0.001, 0.01, 0.1]
+
+    x_adv = fgsm(x, y, model, loss_fn, eta=0.01)
+    x_adv2 = fgsm(x_adv, y, model, loss_fn, eta=0.01)
+
     # tst = [x_adv + eta * signed_grad for eta in list_eta]
     # tst = [tf.clip_by_value(x, 0, 1) for x in tst]
 
