@@ -123,6 +123,7 @@ def fgsm(x, y, model, loss_fn, eta=0.01, **kwargs):
     gradient = get_gradient(x, y, model, loss_fn)
     signed_gradient = sign_gradient(gradient)
     x_adv = generate_sign_perturbation(x, eta, signed_gradient)
+
     return x_adv
 
 
@@ -172,14 +173,30 @@ def projection_l2(x, x_adv, eps):
     Returns:
         tf.Tensor projected onto the ball.
     """
-    # Reshape tensor to compute the norm easily, keep batch axis
-    delta = tf.reshape(x - x_adv, [x.shape[0], -1])
-    norm_x = tf.norm(delta, axis=1, ord='euclidean')
-    scale = tf.math.minimum(1, eps / norm_x)
-    scale = tf.reshape(scale, (-1, 1, 1, 1))
-    return x + scale * (x - x_adv)
 
-    # norm_x = tf.norm(delta, axis=1, ord='euclidean')
+    # Reshape tensor to compute the norm easily, keep batch axis
+    delta = tf.reshape(x_adv - x, [x.shape[0], -1])
+    # print(tf.norm(delta, axis=1, ord=np.inf))
+
+    # print(delta.shape)
+    # print(delta)
+
+    norm_delta = tf.norm(delta, axis=1, ord=2)
+
+    # print(tf.norm(delta, axis=1, ord=2))
+    # print(tf.reduce_mean(tf.math.abs(delta), axis=1))
+    # print(tf.reduce_sum(tf.math.abs(delta), axis=1))
+    # print(norm_delta.shape)
+
+    scale = tf.math.minimum(1, eps / norm_delta)
+    # print(tf.math.minimum(1, eps / norm_delta))
+
+    scale = tf.reshape(scale, (-1, 1, 1, 1))
+    # print(scale)
+
+    return x + scale * (x_adv - x)
+
+    # norm_delta = tf.norm(delta, axis=1, ord='euclidean')
     # tf.constant([1.0, 2.0]) * tf.ones((10,2,2,3))
     # tst = tf.reshape(tf.constant([1.0, .0], dtype=tf.dtypes.float64), (-1,1,1,1))
     # tf.reduce_mean(x_adv, axis=(1, 2, 3))
@@ -220,9 +237,10 @@ def pgd_l2_random(x, y, model, loss_fn, eta=0.01, eps=0.1, n_steps=2):
         eps: scalar, radius of the ball.
         n_steps: int, number of itertions.
     """
+    p = np.prod(x.shape[1:])
     x_random = x + tf.random.uniform(shape=x.shape,
-                                     minval=-eps / 2,
-                                     maxval=eps / 2,
+                                     minval=-(eps / np.sqrt(p)),
+                                     maxval=(eps / np.sqrt(p)),
                                      seed=94,
                                      dtype=tf.dtypes.float64)
 
@@ -309,13 +327,15 @@ if __name__ == '__main__':
                         epoch_accuracy.result()))
 
     #   ###############
-
-    x = x_test[1:3]
+    n = 1
+    x = x_test[0:n]
     x = tf.constant(x)
     # x_adv = tf.expand_dims(tf.constant(x_adv), 0)
     # plt.imshow(x_adv[0])
-    y = y_train[1:3]
+    y = y_train[0:n]
     y = tf.constant(y)
+
+    # x == x + x_adv - x_adv
 
     loss_fn = tf.keras.losses.MeanSquaredError()
 
