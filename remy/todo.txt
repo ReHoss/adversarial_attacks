@@ -1,12 +1,14 @@
-- Finir lire papier
-- Check github
-
-- implementer from scratch
+- Finir lire papier -ok
+- Check github -ok
+- implementer from scratch -ok
 - faire un benchmark des attacks
-- latex
-- notebook
-- ppt
-- Coder a la maniere du papier suggerer par geovani
+- latex -ok
+- notebook -ok
+- ppt -ok
+- Coder a la maniere du papier suggerer par geovani -ok
+
+- rename files
+
 
 
 
@@ -14,5 +16,7 @@
 
 Ideas:
 - Data Augmentation to check accuracy improvement
-- Check attack accuracies
 - CW
+
+
+
