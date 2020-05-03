@@ -1,5 +1,4 @@
 import numpy as np
-import pandas as pd
 import datetime
 import typing
 import matplotlib.pyplot as plt
@@ -26,7 +25,7 @@ def create_model(config: ModelConfig):
 
     for filters, kernel_size in config.conv_layers:
         x = Conv2D(filters=filters, kernel_size=(kernel_size, kernel_size), activation='relu')(x)
-        x = Dropout(0.2, seed=94)(x)
+        # x = Dropout(0.2, seed=94)(x)
         x = MaxPooling2D((2, 2))(x)
 
     x = AveragePooling2D()(x)
@@ -42,7 +41,7 @@ def create_model(config: ModelConfig):
     )
 
     model.compile(
-        loss=tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+        loss="categorical_crossentropy",
         optimizer='adam',
         metrics=['accuracy']
     )
@@ -60,21 +59,20 @@ if __name__ == '__main__':
 
     config = ModelConfig(
         conv_layers=[(64, 3), (128, 3), (256, 3)],
-        dense_layers=[(512, "relu"), (10, None)],
-        epochs=50
+        dense_layers=[(256, "relu"), (10, "softmax")],
+        epochs=20
     )
 
     model = create_model(config)
     model.summary()
 
-    # log_dir = "logs/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-    # tensorboard_callback = keras.callbacks.TensorBoard(log_dir)
-    early_stopping_cb = EarlyStopping(patience=5, restore_best_weights=True)
+    early_stopping_cb = EarlyStopping(patience=4, restore_best_weights=True)
 
-    history = model.fit(x_train, y_train, epochs=config.epochs, validation_data=(x_valid, y_valid),
-                        callbacks=[early_stopping_cb])
+    history = model.fit(x_train, tf.keras.utils.to_categorical(y_train, 10), epochs=config.epochs,
+                        validation_data=(x_valid, tf.keras.utils.to_categorical(y_valid, 10)))
+                        # callbacks=[early_stopping_cb])
 
-    test_loss, test_acc = model.evaluate(x_test, y_test)
+    test_loss, test_acc = model.evaluate(x_test, tf.keras.utils.to_categorical(y_test, 10))
     print("loss {}, accuracy {} on test set".format(test_loss, test_acc))
     model.save("model_{}".format(now))
 
@@ -87,7 +85,6 @@ if __name__ == '__main__':
     plt.legend(['Train', 'Test'], loc='upper left')
     plt.show()
     plt.savefig("accuracy_evolution_{}.png".format(now))
-    plt.close()
 
     plt.plot(history.history['loss'])
     plt.plot(history.history['val_loss'])
@@ -98,4 +95,3 @@ if __name__ == '__main__':
     plt.legend(['Train', 'Test'], loc='upper left')
     plt.show()
     plt.savefig("loss_evolution_{}.png".format(now))
-    plt.close()
